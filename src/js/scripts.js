@@ -4,6 +4,11 @@ import * as dat from 'dat.gui'
 import galaxy from '../imgs/galaxy.jpg'
 import whatsup from '../imgs/whatsup.jpg'
 
+import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
+
+
+const character = new URL('../assets/character.glb',import.meta.url);
+
 const renderer = new THREE.WebGLRenderer();
 
 renderer.shadowMap.enabled = true;
@@ -55,6 +60,16 @@ const sphere = new THREE.Mesh(sphereGrometry,sphereMaterial);
 sphere.position.set(-10,10,0);
 sphere.castShadow=true;
 scene.add(sphere);
+
+const assetLoader = new GLTFLoader();
+assetLoader.load(character.href,function(gltf){
+    const model = gltf.scene;
+    scene.add(model);
+    model.position.set(-12,4,10);
+    model.rotation.y=-190;
+},undefined,function(error){
+    console.error(error);
+})
 
 const ambientLight = new THREE.AmbientLight(0x333333);
 scene.add(ambientLight);
@@ -109,6 +124,9 @@ box2.position.set(5,5,5);
 box2.castShadow=true;
 scene.add(box2);
 
+
+const rayCaster = new THREE.Raycaster();
+
 const gui = new dat.GUI();
 
 const options = {
@@ -140,6 +158,17 @@ gui.addColor(options,'ClearColor').onChange(function(e){
     renderer.setClearColor(e)
 });
 
+
+const mousePosition = new THREE.Vector2();
+
+window.addEventListener('mousemove',function(e){
+    mousePosition.x = (e.clientX/this.window.innerWidth)*2 - 1
+    mousePosition.y = -(e.clientY/this.window.innerHeight)*2 + 1
+});
+
+const sphereId = sphere.id;
+box2.name='boxName';
+
 let step=0;
 let speed=0.01;
 
@@ -156,6 +185,20 @@ function animate(time){
     spotLight.penumbra = options.penumbra;
     sLightHelper.update();
 
+    rayCaster.setFromCamera(mousePosition,camera)
+    const intersects = rayCaster.intersectObjects(scene.children);
+    console.log(intersects)
+
+    for(let i=0;i<intersects.length;i++){
+        if(intersects[i].object.id==sphereId){
+            intersects[i].object.material.color.set(0xFF0000);
+        }
+        if(intersects[i].object.name=='boxName'){
+            intersects[i].object.rotation.x =time/200
+            intersects[i].object.rotation.y =time/200
+        }
+    }
+
     sphere.position.y=10*Math.abs(Math.sin(step));
 
     renderer.render(scene,camera)
@@ -165,3 +208,8 @@ renderer.setAnimationLoop(animate)
 
 renderer.render(scene,camera);
 
+window.addEventListener('resize',function(e){
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth,window.innerHeight)
+})
